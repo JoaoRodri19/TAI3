@@ -1,1 +1,0 @@
-/usr/bin/c++  -W -Wall -std=c++11 -rdynamic CMakeFiles/GetMaxFreqs.dir/GetMaxFreqs.cpp.o -o /home/joaorodrigues/TAI3/GetMaxFreqs/bin/GetMaxFreqs  -lsndfile -lFLAC -lvorbisfile -lvorbis -logg -lvorbisenc -lfftw3 -lm -static 

@@ -1,3 +1,0 @@
-/home/joaorodrigues/TAI3/GetMaxFreqs/src/CMakeFiles/GetMaxFreqs.dir
-/home/joaorodrigues/TAI3/GetMaxFreqs/src/CMakeFiles/edit_cache.dir
-/home/joaorodrigues/TAI3/GetMaxFreqs/src/CMakeFiles/rebuild_cache.dir
