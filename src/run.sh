@@ -1,13 +1,14 @@
-python3 run_seg.py seg ../complete_musics 5 10
-python3 run_seg.py sig
-python3 run_seg.py compress gzip
+python3 run.py seg ../complete_musics 5 10
+python3 run.py sig
+python3 run.py compress gzip
 
 DIR="../segment_of_music"
 
 for FILE in "$DIR"/*; do
   if [ -f "$FILE" ]; then
-    python3 run_seg.py pred $FILE gzip
+    echo "$FILE"
+    python3 run.py pred $FILE gzip
   fi
 done
 
-python3 run_seg.py clean
+python3 run.py clean

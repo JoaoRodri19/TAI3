@@ -1,3 +1,8 @@
-python3 run_seg.py seg ../complete_musics 5 10
-python3 run_seg.py sig
-python3 run_seg.py compress gzip
+if [ -d "../complete_musics" ]; then
+    python3 run.py seg ../noise 5 10    
+  fi
+if [ -d "../noise" ]; then
+    python3 run.py seg ../noise 5 10    
+fi
+python3 run.py sig
+python3 run.py compress gzip

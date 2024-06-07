@@ -1,1 +1,1 @@
-python3 run_seg.py clean
+python3 run.py clean

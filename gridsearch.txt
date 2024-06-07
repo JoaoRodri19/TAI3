@@ -1,4 +1,0 @@
-vários tamanhos de segmentos de música
-vários tipos de compressores
-vários tipos de ruído
-várias percentagens de ruído

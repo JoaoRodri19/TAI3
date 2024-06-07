@@ -1,1 +1,1 @@
-python3 run_seg.py add_noise ../complete_musics/ ../noise white 0.05
+python3 run.py add_noise ../complete_musics/ ../noise white 0.05
