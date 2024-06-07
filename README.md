@@ -14,3 +14,5 @@ python3 run_seg.py pred
 python3 run_seg.py *command* -h  for more detail  
 also  
 python3 run_seg.py clean to clean all files created during the execution
+
+sox -m tmp.wav - test.wav

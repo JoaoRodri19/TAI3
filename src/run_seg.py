@@ -6,6 +6,7 @@ import argparse
 import zipfile
 import zstandard as zstd
 from pathlib import Path
+
 def extract_segment(start_time, duration,input_dir="../complete_musics", output_format=None, quiet=False,output_dir="../segment_of_music"):
     # Create the output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -35,11 +36,32 @@ def extract_segment(start_time, duration,input_dir="../complete_musics", output_
             except subprocess.CalledProcessError as e:
                 if not quiet:
                     print(f"Error processing {file_name}: {e}")
+                    
+def add_noise(input_dir, output_dir, type_of_noise, noise_percentage, quiet=False):
+    os.makedirs(output_dir, exist_ok=True)
+    for file_name in os.listdir(input_dir):
+        input_file_path = os.path.join(input_dir, file_name)
+        output_file_path = os.path.join(output_dir, file_name)
+        
+        generate_noise_command = [
+            'sox', input_file_path, '-p', 'synth', type_of_noise, 'vol', noise_percentage
+        ]
+        
+        # Command to mix the original file with the piped noise file
+        mix_noise_command = [
+            'sox', '-m', input_file_path, '-p', output_file_path
+        ]
+
+        # Open a subprocess to handle piping
+        p1 = subprocess.Popen(generate_noise_command, stdout=subprocess.PIPE)
+        p2 = subprocess.Popen(mix_noise_command, stdin=p1.stdout, stdout=subprocess.PIPE)
+        p1.stdout.close()  # Allow p1 to receive a SIGPIPE if p2 exits
+        p2.communicate()  # Wait for process to complete
 
 def create_signature(output_dir="../signature",input_dir="../complete_musics"):
-    if not os.path.exists('../src/GetMaxFreqs.cpp'):
+    if not os.path.exists('../GetMaxFreqs/bin/GetMaxFreqs'):
         command = [
-            'g++', '-W', '-Wall', '-std=c++11', '-o', 'GetMaxFreqs',
+            'g++', '-W', '-Wall', '-std=c++11', '-o', '../GetMaxFreqs/bin/GetMaxFreqs',
             '../GetMaxFreqs/src/GetMaxFreqs.cpp', '-lsndfile', '-lfftw3', '-lm'
         ]
         subprocess.run(command, check=True)
@@ -50,7 +72,7 @@ def create_signature(output_dir="../signature",input_dir="../complete_musics"):
         file_path = os.path.join(input_dir, file_name)
         file_root, file_ext = os.path.splitext(file_name)
         command = [
-        './GetMaxFreqs', '-w', output_dir+'/'+file_root+'.freqs', file_path
+        '../GetMaxFreqs/bin/GetMaxFreqs', '-w', output_dir+'/'+file_root+'.freqs', file_path
         ]
         try:
             subprocess.run(command, check=True)
@@ -129,7 +151,7 @@ def predict(file,compression,signatures_complete="../signature"
     file_path_obj = Path(file)
     file_name_without_extension = file_path_obj.stem
     command = [
-        './GetMaxFreqs', '-w', "./"+file_name_without_extension+'.freqs', file
+        '../GetMaxFreqs/bin/GetMaxFreqs', '-w', "./"+file_name_without_extension+'.freqs', file
         ]
     subprocess.run(command, check=True)
     file = file_name_without_extension+".freqs"
@@ -145,7 +167,6 @@ def predict(file,compression,signatures_complete="../signature"
     zip_file(file,".",compression)
     os.remove(file)
     file = file_name_without_extension+".zip"
-
     
     
     sizes = dict()
@@ -171,16 +192,18 @@ def predict(file,compression,signatures_complete="../signature"
     print("Segmented file: ",file_name_without_extension)
     print("Prediction: ",min_sim[1])
     
+    os.remove(file)
+    
     
 def NCD(seg,complete,mix):
     return (mix - min(seg,complete))/max(seg,complete)  
 def clean():
-    dirs = ["../compressed","../segment_of_music","../signature","../compressed_together"]   
+    dirs = ["../compressed","../segment_of_music","../signature","../compressed_together","../noise"]   
     for dir in dirs:
         if os.path.exists(dir):
             shutil.rmtree(dir)
     for file_name in os.listdir("."):
-        if file_name != "run_seg.py":
+        if file_name not in ["run_seg.py","run.sh","prepare.sh","predict.sh","clean.sh","add_noise.sh"]:
             os.remove(file_name)
            
 
@@ -198,14 +221,21 @@ if __name__ == "__main__":
 
     parser_sig = subparsers.add_parser('sig', help='Create music signature')
     
-    parser_sig = subparsers.add_parser('compress', help='compress database of complete musics')
-    parser_sig.add_argument('compression', type=str, help="Compression method")
+    parser_compress = subparsers.add_parser('compress', help='compress database of complete musics')
+    parser_compress.add_argument('compression', type=str, help="Compression method")
     
-    parser_sig = subparsers.add_parser('pred', help='Predict to music given a segment')
-    parser_sig.add_argument('target_file', type=str, help="Segment of music to predict")
-    parser_sig.add_argument('compression', type=str, help="Compression method")
+    parser_pred = subparsers.add_parser('pred', help='Predict to music given a segment')
+    parser_pred.add_argument('target_file', type=str, help="Segment of music to predict")
+    parser_pred.add_argument('compression', type=str, help="Compression method")
     
-    parser_sig = subparsers.add_parser('clean', help='Clean all musics except database')
+    parser_clean = subparsers.add_parser('clean', help='Clean all musics except database')
+    
+    parser_add_noise = subparsers.add_parser('add_noise', help='Adds noise to all files in a directory')
+    parser_add_noise.add_argument('input_dir', type=str, help="")
+    parser_add_noise.add_argument('output_dir', type=str, help="")
+    parser_add_noise.add_argument('type_of_noise', type=str, help="")
+    parser_add_noise.add_argument('percentage_noise', type=str, help="")
+    parser_add_noise.add_argument('-q', '--quiet', action='store_true', help="Suppress output messages")
     args = parser.parse_args()
 
     if args.command == 'seg':
@@ -218,4 +248,6 @@ if __name__ == "__main__":
         predict(args.target_file,args.compression)
     if args.command == "clean":
         clean()
+    if args.command == "add_noise":
+        add_noise(args.input_dir, args.output_dir, args.type_of_noise, args.percentage_noise, args.quiet)
     
