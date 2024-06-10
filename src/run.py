@@ -248,17 +248,11 @@ def grid_search():
                 for compression_mode in compression_modes:
                     for segment_length in segment_lengths:
                         for compression_level in compression_levels:
-                            correct = 0
-                            incorrect = 0
                             extract_segment(start_time=5, duration=segment_length, input_dir=complete_wav_files_input_dir)
                             create_signature(input_dir=complete_wav_files_input_dir)
                             compress_data_base(compression=compression_mode,compression_level=compression_level)
                             
                             for file_name in os.listdir("../segment_of_music"):
-                                #if predict(file=os.path.join("../segment_of_music",file_name),compression=compression_mode):
-                                #    correct+=1
-                                #else:
-                                #    incorrect+=1
                                 preds[file_name.removesuffix(".wav")] =  predict(file=os.path.join("../segment_of_music",file_name),compression=compression_mode,compression_level=compression_level)
                             results_file.write(f"{type_of_noise}\t\t\t{noise_percentage}\t\t\t\t\t{compression_mode}\t\t\t\t{compression_level}\t\t\t\t{segment_length}\t\t\t\t{preds}\n")
                     clean()
