@@ -4,6 +4,7 @@ import sys
 import shutil
 import argparse
 import zipfile
+import re
 import zstandard as zstd
 from pathlib import Path
 
@@ -80,7 +81,9 @@ def create_signature(output_dir="../signature",input_dir="../complete_musics"):
         except subprocess.CalledProcessError as e:
             print(f"Error craeting signature {file_name}: {e}")
         
-def zip_file(file, output_dir, compression):
+def zip_file(file, output_dir, compression,compression_level = None):
+    file_name_with_extension = os.path.basename(file)
+    file_name = os.path.splitext(file_name_with_extension)[0]
     if compression == "gzip":
         compression = zipfile.ZIP_DEFLATED
     elif compression == "bzip2":
@@ -89,19 +92,22 @@ def zip_file(file, output_dir, compression):
         compression= zipfile.ZIP_LZMA
     elif compression == "zstd":
         with open(file, 'rb') as f_in:
-            with open(os.path.join(output_dir, os.path.basename(file) + '.zst'), 'wb') as f_out:
-                cctx = zstd.ZstdCompressor()
+            with open(output_dir+'/'+file_name+".zip", 'wb') as f_out:
+                if compression_level == None:
+                    cctx = zstd.ZstdCompressor()
+                else:
+                    cctx = zstd.ZstdCompressor(level=compression_level)
                 f_out.write(cctx.compress(f_in.read()))
+                return
     
     
-    file_name_with_extension = os.path.basename(file)
-    file_name = os.path.splitext(file_name_with_extension)[0]
+    
     if compression == "zstd":
         with zipfile.ZipFile(output_dir+'/'+file_name+".zip", 'w') as zipf:
             zipf.write(file)
         os.remove(os.path.join(output_dir,file_name+".freqs.zst"))
     else:
-        with zipfile.ZipFile(output_dir+'/'+file_name+".zip", 'w', compression) as zipf:
+        with zipfile.ZipFile(output_dir+'/'+file_name+".zip", 'w', compression,compresslevel=compression_level) as zipf:
             zipf.write(file)
             
 def append_files(file, path_files, output_dir):
@@ -129,11 +135,11 @@ def append_files(file, path_files, output_dir):
             f.write(initial_content)
             f.write(additional_content)
 
-def compress_data_base(compression,complete_musics ="../signature",output_compress="../compressed"):
+def compress_data_base(compression,complete_musics ="../signature",output_compress="../compressed",compression_level=None):
     os.makedirs(output_compress, exist_ok=True)
     for file_name in os.listdir(complete_musics):
         file_path = os.path.join(complete_musics ,file_name)
-        zip_file(file_path,output_compress,compression)
+        zip_file(file_path,output_compress,compression,compression_level)
         
 def delete_files_with_extension(directory, extension):
     # Ensure the directory exists
@@ -149,7 +155,7 @@ def delete_files_with_extension(directory, extension):
             os.remove(file_path)
 
 def predict(file,compression,signatures_complete="../signature"
-            ,output_dir="../compressed_together",compressed_files = "../compressed"):
+            ,output_dir="../compressed_together",compressed_files = "../compressed",compression_level=None):
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
     #signature of target
@@ -171,7 +177,7 @@ def predict(file,compression,signatures_complete="../signature"
     delete_files_with_extension(output_dir,".freqs")
     
     #print(file)
-    zip_file(file,".",compression)
+    zip_file(file,".",compression,compression_level)
     os.remove(file)
     
     file = file_name_without_extension+".zip"
@@ -195,15 +201,15 @@ def predict(file,compression,signatures_complete="../signature"
         if sim_list[file_root] < min_sim[0]:
             min_sim = (sim_list[file_root],file_root)
     
-    for key, value in sim_list.items():
-        print(f"{key}: {value}")
-    print("Segmented file: ",file_name_without_extension)
-    print("Prediction: ",min_sim[1])
+    #for key, value in sim_list.items():
+    #    print(f"{key}: {value}")
+    #print("Segmented file: ",file_name_without_extension)
+    #print("Prediction: ",min_sim[1])
     
     os.remove(file)
-    if file_name_without_extension == min_sim[1].removesuffix(".freqs"):
-        return True
-    return False
+    #if file_name_without_extension == min_sim[1].removesuffix(".freqs"):
+    #    return True
+    return min_sim[1].removesuffix(".freqs")
     
     
 def NCD(seg,complete,mix):
@@ -214,44 +220,82 @@ def clean():
         if os.path.exists(dir):
             shutil.rmtree(dir)  
     for file_name in os.listdir("."):
-        if file_name not in ["run.py","run.sh","prepare.sh","predict.sh","clean.sh","add_noise.sh","results.txt"]:
+        if file_name not in ["run.py","run.sh","prepare.sh","predict.sh","clean.sh","add_noise.sh","results.txt","graphs.ipynb"]:
             os.remove(file_name)
             
             
 def grid_search():
     compression_modes = ["gzip", "bzip2", "lzma","zstd"]
-    #compression_modes = ["zstd"]
+    #compression_modes = ["lzma"]
     types_of_noise = ["white", "pink", "brown"] # "blue", "violet", "grey" not working for unknown reason
-    #types_of_noise = ["grey"]
-    segment_lengths = ["5", "10", "15", "20"]
+    #types_of_noise = ["white"]
+    segment_lengths = ["10", "30", "60"]
     #segment_lengths = ["20"]
-    noise_percentages = ["0", "0.01", "0.05", "0.1", "0.25", "0.5"]
+    noise_percentages = ["0.00", "0.01", "0.05", "0.10", "0.25", "0.50","0.80"]
     #noise_percentages = ["0"]
+    compression_levels = [None,2,5,9]
+    #compression_levels = [5]
     
     
     
     complete_wav_files_input_dir = "../complete_musics"
-    
+    preds = {}
     with open("results.txt","w") as results_file:
-        results_file.write("Type of noise\tNoise Percentage\tCompression Mode\tSegment Length\tCorrect\tIncorrect\n")
+        results_file.write("Type of noise\tNoise Percentage\tCompression Mode\tCompression Level\tSegment Length\tPredicts\n")
         for type_of_noise in types_of_noise:
             for noise_percentage in noise_percentages:
                 add_noise(input_dir=complete_wav_files_input_dir, output_dir="../temp_input_dir",type_of_noise=type_of_noise,noise_percentage=noise_percentage)
                 for compression_mode in compression_modes:
                     for segment_length in segment_lengths:
-                        correct = 0
-                        incorrect = 0
-                        extract_segment(start_time=5, duration=segment_length, input_dir=complete_wav_files_input_dir)
-                        create_signature(input_dir=complete_wav_files_input_dir)
-                        compress_data_base(compression=compression_mode)
-                        
-                        for file_name in os.listdir("../segment_of_music"):
-                            if predict(file=os.path.join("../segment_of_music",file_name),compression=compression_mode):
-                                correct+=1
-                            else:
-                                incorrect+=1
-                        results_file.write(f"{type_of_noise}\t\t\t{noise_percentage}\t\t\t\t\t{compression_mode}\t\t\t\t{segment_length}\t\t\t\t{correct}\t\t{incorrect}\n")
-                clean()
+                        for compression_level in compression_levels:
+                            correct = 0
+                            incorrect = 0
+                            extract_segment(start_time=5, duration=segment_length, input_dir=complete_wav_files_input_dir)
+                            create_signature(input_dir=complete_wav_files_input_dir)
+                            compress_data_base(compression=compression_mode,compression_level=compression_level)
+                            
+                            for file_name in os.listdir("../segment_of_music"):
+                                #if predict(file=os.path.join("../segment_of_music",file_name),compression=compression_mode):
+                                #    correct+=1
+                                #else:
+                                #    incorrect+=1
+                                preds[file_name.removesuffix(".wav")] =  predict(file=os.path.join("../segment_of_music",file_name),compression=compression_mode,compression_level=compression_level)
+                            results_file.write(f"{type_of_noise}\t\t\t{noise_percentage}\t\t\t\t\t{compression_mode}\t\t\t\t{compression_level}\t\t\t\t{segment_length}\t\t\t\t{preds}\n")
+                    clean()
+
+def graphs():
+    if os.path.exists("results.txt"):
+        positives = {}
+        negatives = {}
+        with open("results.txt","r") as file:
+            data = file.readlines()
+            for line in data[1:]:
+                line = re.split(r'\t+', line)
+                line[-1] = int(line[-1].removesuffix("\n"))
+                line[-2] = int(line[-2])
+                for var in line[0:4]:
+                    if var in positives:
+                        positives[var] += line[4]
+                    else:
+                        positives[var] = line[4]
+                    if var in negatives:
+                        negatives[var] += line[5]
+                    else:
+                        negatives[var] = line[5]
+        
+        print("\nPositives")
+        for key in positives:
+            print(f"{key}\t{positives[key]}")
+
+        print("\nNegatives")
+        for key in negatives:
+            print(f"{key}\t{negatives[key]}")
+
+        print("\nPercentage")
+        for key in positives:
+            print(f"{key}\t{float(positives[key]) / ( float(positives[key])+float(negatives[key]) )}")
+    else:
+        print("Data file not found")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Audio processing script with optional segment extraction.")
@@ -269,11 +313,13 @@ if __name__ == "__main__":
     
     parser_compress = subparsers.add_parser('compress', help='compress database of complete musics')
     parser_compress.add_argument('compression', type=str, help="Compression method")
+    parser_compress.add_argument('compression_lvl', type=str, help="Compression level")
     
     parser_pred = subparsers.add_parser('pred', help='Predict to music given a segment')
     parser_pred.add_argument('target_file', type=str, help="Segment of music to predict")
     parser_pred.add_argument('compression', type=str, help="Compression method")
-    
+    parser_compress.add_argument('compression_lvl', type=str, help="Compression level")
+
     parser_clean = subparsers.add_parser('clean', help='Clean all musics except database')
     
     parser_add_noise = subparsers.add_parser('add_noise', help='Adds noise to all files in a directory')
@@ -284,6 +330,8 @@ if __name__ == "__main__":
     parser_add_noise.add_argument('-q', '--quiet', action='store_true', help="Suppress output messages")
     
     parser_grid_search = subparsers.add_parser('grid_search')
+
+    parser_graphs = subparsers.add_parser('graphs')
     
     args = parser.parse_args()
 
@@ -292,12 +340,14 @@ if __name__ == "__main__":
     if args.command == 'sig':
         create_signature()
     if args.command == 'compress':
-        compress_data_base(args.compression)
+        compress_data_base(args.compression,compression_level=args.compression_lvl)
     if args.command == "pred":
-        predict(args.target_file,args.compression)
+        predict(args.target_file,args.compression,compression_level=args.compression_lvl)
     if args.command == "clean":
         clean()
     if args.command == "add_noise":
         add_noise(args.input_dir, args.output_dir, args.type_of_noise, args.percentage_noise, args.quiet)
     if args.command == "grid_search":
         grid_search()
+    if args.command == "graphs":
+        graphs()
