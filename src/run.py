@@ -257,40 +257,6 @@ def grid_search():
                             results_file.write(f"{type_of_noise}\t\t\t{noise_percentage}\t\t\t\t\t{compression_mode}\t\t\t\t{compression_level}\t\t\t\t{segment_length}\t\t\t\t{preds}\n")
                     clean()
 
-def graphs():
-    if os.path.exists("results.txt"):
-        positives = {}
-        negatives = {}
-        with open("results.txt","r") as file:
-            data = file.readlines()
-            for line in data[1:]:
-                line = re.split(r'\t+', line)
-                line[-1] = int(line[-1].removesuffix("\n"))
-                line[-2] = int(line[-2])
-                for var in line[0:4]:
-                    if var in positives:
-                        positives[var] += line[4]
-                    else:
-                        positives[var] = line[4]
-                    if var in negatives:
-                        negatives[var] += line[5]
-                    else:
-                        negatives[var] = line[5]
-        
-        print("\nPositives")
-        for key in positives:
-            print(f"{key}\t{positives[key]}")
-
-        print("\nNegatives")
-        for key in negatives:
-            print(f"{key}\t{negatives[key]}")
-
-        print("\nPercentage")
-        for key in positives:
-            print(f"{key}\t{float(positives[key]) / ( float(positives[key])+float(negatives[key]) )}")
-    else:
-        print("Data file not found")
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Audio processing script with optional segment extraction.")
     subparsers = parser.add_subparsers(dest='command', required=True, help='Sub-command help')
@@ -324,8 +290,6 @@ if __name__ == "__main__":
     parser_add_noise.add_argument('-q', '--quiet', action='store_true', help="Suppress output messages")
     
     parser_grid_search = subparsers.add_parser('grid_search')
-
-    parser_graphs = subparsers.add_parser('graphs')
     
     args = parser.parse_args()
 
@@ -343,5 +307,3 @@ if __name__ == "__main__":
         add_noise(args.input_dir, args.output_dir, args.type_of_noise, args.percentage_noise, args.quiet)
     if args.command == "grid_search":
         grid_search()
-    if args.command == "graphs":
-        graphs()
