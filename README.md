@@ -4,15 +4,24 @@ sudo apt install sox
 sudo apt install sox libsox-fmt-all  
 pip install zstandard  
 
-usage  
-go to src directory  
-python3 run_seg.py seg   
-python3 run_seg.py sig  
-python3 run_seg.py compress  
-python3 run_seg.py pred  
+# How to get the dataset
 
-python3 run_seg.py *command* -h  for more detail  
-also  
-python3 run_seg.py clean to clean all files created during the execution
+source download.sh
 
-sox -m tmp.wav - test.wav
+# How to use 
+
+python3 run.py *command* -h  for more detail  
+
+# List of commands
+
+- seg
+- sig
+- compress
+- pred
+- clean
+- add_noise
+- grid_search
+
+# Presentation
+
+https://youtu.be/sWccgENUCc4

@@ -82,6 +82,8 @@ def create_signature(output_dir="../signature",input_dir="../complete_musics"):
             print(f"Error craeting signature {file_name}: {e}")
         
 def zip_file(file, output_dir, compression,compression_level = None):
+    if compression_level!=None:
+        compression_level = int(compression_level)
     file_name_with_extension = os.path.basename(file)
     file_name = os.path.splitext(file_name_with_extension)[0]
     if compression == "gzip":
@@ -172,7 +174,7 @@ def predict(file,compression,signatures_complete="../signature"
     
     for file_name in os.listdir(output_dir):
         file_path = os.path.join(output_dir ,file_name)
-        zip_file(file_path,output_dir,compression)
+        zip_file(file_path,output_dir,compression,compression_level=compression_level)
     
     delete_files_with_extension(output_dir,".freqs")
     
@@ -201,10 +203,10 @@ def predict(file,compression,signatures_complete="../signature"
         if sim_list[file_root] < min_sim[0]:
             min_sim = (sim_list[file_root],file_root)
     
-    #for key, value in sim_list.items():
-    #    print(f"{key}: {value}")
-    #print("Segmented file: ",file_name_without_extension)
-    #print("Prediction: ",min_sim[1])
+    for key, value in sim_list.items():
+        print(f"{key}: {value}")
+    print("Segmented file: ",file_name_without_extension)
+    print("Prediction: ",min_sim[1])
     
     os.remove(file)
     #if file_name_without_extension == min_sim[1].removesuffix(".freqs"):
@@ -270,7 +272,8 @@ if __name__ == "__main__":
     parser_seg.add_argument('-q', '--quiet', action='store_true', help="Suppress output messages")
 
     parser_sig = subparsers.add_parser('sig', help='Create music signature')
-    
+    parser_sig.add_argument('input_dir', type=str, help="Input directory containing audio files")
+
     parser_compress = subparsers.add_parser('compress', help='compress database of complete musics')
     parser_compress.add_argument('compression', type=str, help="Compression method")
     parser_compress.add_argument('compression_lvl', type=str, help="Compression level")
@@ -278,13 +281,12 @@ if __name__ == "__main__":
     parser_pred = subparsers.add_parser('pred', help='Predict to music given a segment')
     parser_pred.add_argument('target_file', type=str, help="Segment of music to predict")
     parser_pred.add_argument('compression', type=str, help="Compression method")
-    parser_compress.add_argument('compression_lvl', type=str, help="Compression level")
+    parser_pred.add_argument('compression_lvl', type=str, help="Compression level")
 
     parser_clean = subparsers.add_parser('clean', help='Clean all musics except database')
     
     parser_add_noise = subparsers.add_parser('add_noise', help='Adds noise to all files in a directory')
     parser_add_noise.add_argument('input_dir', type=str, help="")
-    parser_add_noise.add_argument('output_dir', type=str, help="")
     parser_add_noise.add_argument('type_of_noise', type=str, help="")
     parser_add_noise.add_argument('percentage_noise', type=str, help="")
     parser_add_noise.add_argument('-q', '--quiet', action='store_true', help="Suppress output messages")
@@ -296,7 +298,7 @@ if __name__ == "__main__":
     if args.command == 'seg':
         extract_segment( args.start_time, args.duration,args.input_dir, args.format, args.quiet)
     if args.command == 'sig':
-        create_signature()
+        create_signature(input_dir=args.input_dir)
     if args.command == 'compress':
         compress_data_base(args.compression,compression_level=args.compression_lvl)
     if args.command == "pred":
@@ -304,6 +306,6 @@ if __name__ == "__main__":
     if args.command == "clean":
         clean()
     if args.command == "add_noise":
-        add_noise(args.input_dir, args.output_dir, args.type_of_noise, args.percentage_noise, args.quiet)
+        add_noise(args.input_dir, "../noise", args.type_of_noise, args.percentage_noise, args.quiet)
     if args.command == "grid_search":
         grid_search()
